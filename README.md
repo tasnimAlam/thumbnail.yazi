@@ -2,10 +2,13 @@
 
 Display thumbnails in yazi 
 
+## Requirements
+[swayimg](https://github.com/artemsen/swayimg)
+
 ## Installation
 
 ```sh
-ya pack -a tasnimAlam/thumbnail.yazi
+ya pack -a tasnimAlam/thumbnail
 ```
 
 ## Usage
