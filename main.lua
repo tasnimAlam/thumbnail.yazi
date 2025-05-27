@@ -1,41 +1,43 @@
 --- @since 25.2.26
 
-local selected_or_hovered = ya.sync(function()
-	local tab, paths = cx.active, {}
-	for _, u in pairs(tab.selected) do
-		paths[#paths + 1] = tostring(u)
+local get_target_directory = ya.sync(function()
+	local current_pane = cx.active.current
+	local hovered_item = current_pane.hovered
+
+	if hovered_item and hovered_item.cha.is_dir then
+		-- If a directory is hovered, use its path
+		return tostring(hovered_item.url)
+	else
+		-- Otherwise, use the current working directory of the pane
+		return tostring(current_pane.cwd)
 	end
-	if #paths == 0 and tab.current.hovered then
-		paths[1] = tostring(tab.current.hovered.url)
-	end
-	return paths
 end)
 
 return {
 	entry = function()
 		ya.mgr_emit("escape", { visual = true })
 
-		local urls = selected_or_hovered()
-		if #urls == 0 then
-			return ya.notify { title = "Chmod", content = "No file selected", level = "warn", timeout = 5 }
-		end
+		local target_dir = get_target_directory()
 
-		local value, event = ya.input {
-			title = "Chmod:",
-			position = { "top-center", y = 3, w = 40 },
-		}
-		if event ~= 1 then
-			return
-		end
-
-		local status, err = Command("chmod"):arg(value):args(urls):spawn():wait()
-		if not status or not status.success then
-			ya.notify {
-				title = "Chmod",
-				content = string.format("Chmod on selected files failed, error: %s", status and status.code or err),
+		if not target_dir then
+			return ya.notify({
+				title = "Swayimg Gallery",
+				content = "Could not determine target directory.",
 				level = "error",
 				timeout = 5,
-			}
+			})
+		end
+
+		-- Run swayimg in the target directory
+		local status, err = Command("swayimg"):arg("--gallery"):arg(target_dir):spawn():wait()
+
+		if not status or not status.success then
+			ya.notify({
+				title = "Swayimg Gallery",
+				content = string.format("Failed to open %s", status and status.code or err),
+				level = "error",
+				timeout = 5,
+			})
 		end
 	end,
 }
