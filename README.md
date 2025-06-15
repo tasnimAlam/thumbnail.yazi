@@ -2,6 +2,9 @@
 
 Display thumbnails in yazi 
 
+## Demo
+![Demo](demo.gif)
+
 ## Requirements
 [swayimg](https://github.com/artemsen/swayimg)
 
