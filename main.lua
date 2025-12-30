@@ -29,7 +29,7 @@ local get_image_files = ya.sync(function()
 	end
 
 	-- Get all files from the current pane (respects filters)
-	local files = current_pane.window
+	local files = current_pane.files
 	local image_files = {}
 
 	for _, file in ipairs(files) do
