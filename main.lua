@@ -18,51 +18,55 @@ end
 local get_image_files = ya.sync(function()
 	local current_pane = cx.active.current
 	local hovered_item = current_pane.hovered
-	local target_dir
+	local files = current_pane.files
+	local selected_items = cx.active.selected
 
-	if hovered_item and hovered_item.cha.is_dir then
-		-- If a directory is hovered, use its path
-		target_dir = tostring(hovered_item.url)
+  -- Full URLs to image files or directories
+	local target_urls = {}
+	local selection_kind = nil
+
+	-- Order of operations
+	-- 1. Selections
+	-- 2. Hovered if is_dir
+	-- 3. Current working directory respecting filters
+
+	if #selected_items > 0 then
+		-- Something was selected
+		for _, item in pairs(selected_items) do
+			-- Get the Urls as strings to selected items
+			table.insert(target_urls, tostring(item))
+			selection_kind = "selection"
+		end
+	elseif hovered_item and hovered_item.cha.is_dir then
+		-- If a directory is hovered, get string url
+		table.insert(target_urls, tostring(hovered_item.url))
+			selection_kind = "hover"
 	else
-		-- Otherwise, use the current working directory of the pane
-		target_dir = tostring(current_pane.cwd)
-	end
-
-	-- Get all files from the current pane (respects filters)
-	local files = current_pane.window
-	local image_files = {}
-
-	for _, file in ipairs(files) do
-		if not file.cha.is_dir then
-			local filename = tostring(file.url)
-			if is_image_file(filename) then
-				table.insert(image_files, filename)
+		-- Get all image files from the current pane (respects filters)
+		for _, file in ipairs(files) do
+			if not file.cha.is_dir then
+				local filename = tostring(file.url)
+				if is_image_file(filename) then
+					table.insert(target_urls, filename)
+				end
 			end
 		end
+		selection_kind = "folder"
 	end
 
-	return target_dir, image_files
+	return target_urls, selection_kind
 end)
 
 return {
 	entry = function()
 		ya.mgr_emit("escape", { visual = true })
 
-		local target_dir, image_files = get_image_files()
-
-		if not target_dir then
-			return ya.notify({
-				title = "Swayimg Gallery",
-				content = "Could not determine target directory.",
-				level = "error",
-				timeout = 5,
-			})
-		end
+		local image_files, selection_kind = get_image_files()
 
 		if #image_files == 0 then
 			return ya.notify({
 				title = "Swayimg Gallery",
-				content = "No image files found in the target directory.",
+				content = "No image files found in the " .. selection_kind,
 				level = "warn",
 				timeout = 5,
 			})
