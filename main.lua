@@ -1,4 +1,4 @@
---- @since 25.2.26
+--- @since 26.8.15
 
 local get_target_directory = ya.sync(function()
 	local current_pane = cx.active.current
@@ -15,7 +15,7 @@ end)
 
 return {
 	entry = function()
-		ya.mgr_emit("escape", { visual = true })
+		ya.emit("escape", { visual = true })
 
 		local target_dir = get_target_directory()
 
