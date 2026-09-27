@@ -6,13 +6,17 @@ Display thumbnails in yazi
 ![Demo](demo.gif)
 
 ## Requirements
+
+- **Yazi >= 26.8.15** — the plugin uses APIs added in that release and does nothing on older versions.
+- **A Wayland session.** The gallery is [swayimg](https://github.com/artemsen/swayimg), which is
+  Wayland-only, so this plugin does not work under X11.
 - [swayimg](https://github.com/artemsen/swayimg)
 - [ffmpegthumbnailer](https://github.com/dirkvdb/ffmpegthumbnailer) (only needed for video files)
 
 ## Installation
 
 ```sh
-ya pack -a tasnimAlam/thumbnail
+ya pkg add tasnimAlam/thumbnail
 ```
 
 ## Usage
@@ -20,7 +24,7 @@ ya pack -a tasnimAlam/thumbnail
 Add this to your `~/.config/yazi/keymap.toml`:
 
 ```toml
-[[manager.prepend_keymap]]
+[[mgr.prepend_keymap]]
 on   = [ "<C-t>" ]
 run  = 'plugin thumbnail'
 desc = "Open current directory in Swayimg gallery"
