@@ -33,6 +33,9 @@ desc = "Open current directory in the thumbnail gallery"
 The viewer is picked from `$WAYLAND_DISPLAY`: `swayimg --gallery` on Wayland,
 `nsxiv -t` on X11.
 
+In nsxiv's single-image view the arrow keys pan; use `n`/`p` (or
+`Space`/`Backspace`) to move between images. swayimg uses its own bindings.
+
 On X11, nsxiv decodes images through **imlib2**, so which formats open depends on
 your local imlib2 build — not on nsxiv or this plugin. Arch's imlib2, for
 example, adds `svg jxl webp heif tiff ico j2k qoi` loaders while other distros
