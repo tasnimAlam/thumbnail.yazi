@@ -7,8 +7,8 @@ local IMAGE_EXTENSIONS = {
 	heic = true, heif = true, avif = true, jxl = true
 }
 
--- Common video extensions. swayimg cannot decode video, so these are shown
--- through a still frame extracted by ffmpegthumbnailer.
+-- Common video extensions. Neither swayimg nor nsxiv can decode video, so these
+-- are shown through a still frame extracted by ffmpegthumbnailer.
 local VIDEO_EXTENSIONS = {
 	mp4 = true, mkv = true, webm = true, mov = true, avi = true,
 	wmv = true, flv = true, m4v = true, mpg = true, mpeg = true,
@@ -55,8 +55,8 @@ local get_media_files = ya.sync(function()
 			if is_video_file(url) then
 				table.insert(video_urls, url)
 			else
-				-- Images and directories go to swayimg untouched
-				-- ponytail: directories are passed through as-is, so swayimg only
+				-- Images and directories go to the viewer untouched
+				-- ponytail: directories are passed through as-is, so the viewer only
 				-- finds the images inside them. Expand with fs.read_dir if videos
 				-- inside a selected/hovered directory ever need thumbnails too.
 				table.insert(target_urls, url)
@@ -95,7 +95,7 @@ end
 
 -- Where the still frame for `video_path` lives. The modification time is part of
 -- the hash so a re-encoded file invalidates its own thumbnail. The basename is
--- kept as a prefix so swayimg's gallery labels stay readable.
+-- kept as a prefix so the gallery labels stay readable.
 local function thumbnail_path(dir, video_path)
 	local cha = fs.cha(Url(video_path))
 	local mtime = cha and cha.mtime or 0
@@ -123,7 +123,7 @@ local function build_thumbnails(video_urls)
 	end
 
 	ya.notify({
-		title = "Swayimg Gallery",
+		title = "Thumbnail Gallery",
 		content = string.format("Generating %d video thumbnail(s)...", #pending),
 		level = "info",
 		timeout = 3,
@@ -141,13 +141,13 @@ local function build_thumbnails(video_urls)
 		local status = job.child and job.child:wait()
 		if not (status and status.success) then
 			-- ffmpegthumbnailer leaves an empty file behind when it gives up on a
-			-- file, so clear it: an empty .jpg would break swayimg's gallery and
-			-- would otherwise be cached as a valid thumbnail forever.
+			-- file, so clear it: an empty .jpg would break the gallery and would
+			-- otherwise be cached as a valid thumbnail forever.
 			fs.remove("file", Url(job.output))
 		end
 	end
 
-	-- Drop the ones that failed, rather than handing swayimg a missing path
+	-- Drop the ones that failed, rather than handing the viewer a missing path
 	local existing = {}
 	for _, thumbnail in ipairs(thumbnails) do
 		if fs.cha(Url(thumbnail)) then
@@ -165,29 +165,64 @@ return {
 
 		if #media_files == 0 and #video_files == 0 then
 			return ya.notify({
-				title = "Swayimg Gallery",
+				title = "Thumbnail Gallery",
 				content = "No image or video files found in the " .. selection_kind,
 				level = "warn",
 				timeout = 5,
 			})
 		end
 
+		-- Pick the gallery viewer for the current display server: swayimg (which is
+		-- Wayland-only) when a Wayland session is present, nsxiv on X11.
+		local wayland = os.getenv("WAYLAND_DISPLAY")
+		local viewer = (wayland and wayland ~= "") and "swayimg" or "nsxiv"
+
+		-- nsxiv renders through imlib2, which has no AVIF loader, so drop AVIF
+		-- images rather than handing the viewer files it cannot open. (What else
+		-- opens depends on the local imlib2 build; see the README.)
+		if viewer == "nsxiv" then
+			local kept = {}
+			for _, media_file in ipairs(media_files) do
+				if extension_of(media_file) ~= "avif" then
+					table.insert(kept, media_file)
+				end
+			end
+			media_files = kept
+		end
+
 		for _, thumbnail in ipairs(build_thumbnails(video_files)) do
 			table.insert(media_files, thumbnail)
 		end
 
-		-- Build command with all filtered image files
-		local cmd = Command("swayimg"):arg("--gallery")
+		-- Build command in thumbnail/gallery mode. `nsxiv -t` mirrors
+		-- `swayimg --gallery`; `-a` animates GIFs, which swayimg does by default.
+		local cmd
+		if viewer == "swayimg" then
+			cmd = Command("swayimg"):arg("--gallery")
+		else
+			cmd = Command("nsxiv"):arg("-t"):arg("-a")
+		end
 		for _, media_file in ipairs(media_files) do
 			cmd = cmd:arg(media_file)
 		end
 
-		local status, err = cmd:spawn():wait()
+		local child, spawn_err = cmd:spawn()
+		if not child then
+			-- Most likely the viewer isn't installed; name it so the user knows
+			-- which package to add instead of seeing a bare failure.
+			return ya.notify({
+				title = "Thumbnail Gallery",
+				content = string.format("Could not start %s (is it installed?): %s", viewer, spawn_err),
+				level = "error",
+				timeout = 5,
+			})
+		end
 
+		local status = child:wait()
 		if not status or not status.success then
 			ya.notify({
-				title = "Swayimg Gallery",
-				content = string.format("Failed to open gallery: %s", status and status.code or err),
+				title = "Thumbnail Gallery",
+				content = string.format("Failed to open gallery: %s", status and status.code or "unknown error"),
 				level = "error",
 				timeout = 5,
 			})
