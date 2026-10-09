@@ -98,7 +98,8 @@ end
 -- kept as a prefix so the gallery labels stay readable.
 local function thumbnail_path(dir, video_path)
 	local cha = fs.cha(Url(video_path))
-	local mtime = cha and cha.mtime or 0
+	-- yazi 26.x: cha.mtime is a Time userdata; `.unix` is its epoch seconds.
+	local mtime = cha and cha.mtime and cha.mtime.unix or 0
 	local basename = video_path:match("([^/]+)$") or video_path
 	local stem = basename:match("^(.*)%.[^%.]+$") or basename
 	return string.format("%s/%s-%s.jpg", dir, stem, ya.hash(video_path .. mtime))
